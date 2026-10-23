@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart File - sign in</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <script src="lib/msal-browser.min.js"></script>
+  <script src="js/config.js"></script>
+  <style>
+    body { font-family: "Segoe UI", -apple-system, sans-serif; font-size: 14px; padding: 24px; color: #242424; }
+    @media (prefers-color-scheme: dark) { body { background: #292929; color: #fff; } }
+  </style>
+</head>
+<body>
+  <p id="msg">Signing you in&hellip;</p>
+  <script>
+    /* Fallback sign-in for Outlook clients without nested app authentication.
+     * Runs a standard MSAL redirect flow inside an Office dialog, then hands the token to the task pane. */
+    Office.onReady(async () => {
+      const cfg = window.SmartFileConfig;
+      const redirectUri = window.location.href.split("#")[0].split("?")[0];
+      const msg = (t) => { document.getElementById("msg").textContent = t; };
+      const send = (payload) => Office.context.ui.messageParent(JSON.stringify(payload));
+      try {
+        const pca = new msal.PublicClientApplication({
+          auth: { clientId: cfg.clientId, authority: "https://login.microsoftonline.com/" + (cfg.tenantId || "common"), redirectUri: redirectUri },
+          cache: { cacheLocation: "localStorage" }
+        });
+        await pca.initialize();
+        const fromRedirect = await pca.handleRedirectPromise();
+        if (fromRedirect && fromRedirect.accessToken) { send({ accessToken: fromRedirect.accessToken, expiresOn: fromRedirect.expiresOn }); return; }
+        const account = pca.getAllAccounts()[0];
+        if (account) {
+          try {
+            const r = await pca.acquireTokenSilent({ scopes: cfg.scopes, account: account });
+            send({ accessToken: r.accessToken, expiresOn: r.expiresOn });
+            return;
+          } catch (e) { /* fall through to redirect */ }
+        }
+        await pca.acquireTokenRedirect({ scopes: cfg.scopes, redirectUri: redirectUri });
+      } catch (e) {
+        msg("Sign-in failed: " + (e.message || e));
+        send({ error: e.message || String(e) });
+      }
+    });
+  </script>
+</body>
+</html>
