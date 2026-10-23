@@ -35,6 +35,8 @@ window.SmartFileConfig = {
   },
 
   maxFolderDepth: 6,        // how deep to walk the folder tree
+  folderRefreshMinutes: 30, // the folder list is remembered between opens and refreshed in the background after this long
+  showTimings: true,        // show how long each step took under the suggestion (set to false once you are happy with the speed)
   historySampleSize: 50,    // earlier emails to inspect per signal
   bodySampleChars: 6000,    // how much of the body to scan for folder names
   maxLearnedRules: 150,     // sender -> folder choices remembered in roaming settings

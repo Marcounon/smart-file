@@ -48,9 +48,17 @@
     return cached && cached.expiresOn - Date.now() > 2 * 60 * 1000;
   }
 
-  /** Get a token without user interaction. Throws AuthRequired when the user has to sign in or consent. */
-  async function getToken() {
-    if (cachedIsFresh()) return cached;
+  let inflight = null;
+
+  /** Get a token without user interaction. Throws AuthRequired when the user has to sign in or consent.
+   *  Concurrent callers share one request: MSAL does not merge NAA requests itself. */
+  function getToken() {
+    if (cachedIsFresh()) return Promise.resolve(cached);
+    if (!inflight) inflight = acquireSilently().finally(() => { inflight = null; });
+    return inflight;
+  }
+
+  async function acquireSilently() {
     if (!naaSupported()) throw new AuthRequired(new Error("Nested app authentication isn\u2019t available in this Outlook client."));
     try {
       const pca = await getPca();
